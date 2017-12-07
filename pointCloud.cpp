@@ -33,5 +33,43 @@ int main(){
         0,0,1,0,
         0,0,0,1;
 
+    Calibration calibration(K, L);
+
+    std::string DepthMap = "0000.yml";
+    cv::Mat depthMat; //read from depth map
+    cv::FileStorage fs(DepthMap, cv::FileStorage::READ);
+    fs["depth"] >> depthMat;
+
+    hVec2D uv ;
+    hVec3D xyz;
+
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    cloud->width    = 480;
+    cloud->height   = 640;
+    cloud->is_dense = false;
+    cloud->points.resize (cloud->width * cloud->height);
+
+        for(int i = 0; i< depthMat.rows; ++i){
+            for( int j = 0; j< depthMat.cols; ++j){
+                if(depthMat.at<ushort>(i,j)!=0){
+                    uv<<j,i,1;
+                    xyz = calibration.Unproject(uv);
+                    xyz *= 1.0f/xyz(2)*depthMat.at<ushort>(i,j);
+                    xyz(3) = 1;
+                    (*cloud)[depthMat.rows*j + i].x=xyz(0);
+                    (*cloud)[depthMat.rows*j + i].y=xyz(1);
+                    (*cloud)[depthMat.rows*j + i].z=xyz(2);
+                    (*cloud)[depthMat.rows*j + i].r=255;
+                    (*cloud)[depthMat.rows*j + i].g=255;
+                    (*cloud)[depthMat.rows*j + i].b=255;
+                }
+                
+            }
+        }
+       pcl::visualization::CloudViewer viewer ("View Point Cloud");
+       viewer.showCloud (cloud);
+      
+        while (!viewer.wasStopped ()){}
+
     return 0;
 }

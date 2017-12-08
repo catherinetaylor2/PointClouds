@@ -35,10 +35,22 @@ int main(){
 
     Calibration calibration(K, L);
 
-    std::string DepthMap = "0000.yml";
-    cv::Mat depthMat; //read from depth map
-    cv::FileStorage fs(DepthMap, cv::FileStorage::READ);
-    fs["depth"] >> depthMat;
+    // std::string DepthMap = "0000.yml";
+    // cv::Mat depthMat; //read from depth map
+    // cv::FileStorage fs(DepthMap, cv::FileStorage::READ);
+    // fs["depth"] >> depthMat;
+
+    // std::cout<<"yml type "<<depthMat.type()<<"\n";
+
+
+    cv::Mat depth = cv::imread("apple.png", cv::IMREAD_ANYDEPTH );
+    cv::Mat mask = cv::imread("mask.png", cv::IMREAD_GRAYSCALE );
+    mask.convertTo(mask, CV_16UC1);
+
+
+    cv::Mat depthMat, seg;
+    depthMat = depth.mul(mask/255.0f);
+
 
     hVec2D uv ;
     hVec3D xyz;
@@ -50,7 +62,7 @@ int main(){
     cloud->points.resize (cloud->width * cloud->height);
 
         for(int i = 0; i< depthMat.rows; ++i){
-            for( int j = 0; j< depthMat.cols; ++j){
+            for( int j = 0; j< depthMat.cols; ++j){   
                 if(depthMat.at<ushort>(i,j)!=0){
                     uv<<j,i,1;
                     xyz = calibration.Unproject(uv);

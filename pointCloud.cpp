@@ -50,15 +50,10 @@ PointCloud::Ptr buildPointCloud(cv::Mat depthMat, Calibration calibration, std::
                 uv<<j,i,1;
                 xyz = calibration.Unproject(uv);
                 xyz *= 1.0f/xyz(2)*depthMat.at<ushort>(i,j);
-                xyz(3) = 1;
                 (*points).push_back(xyz);
             }
         }
     }
-    int width, height;
-    width = numberOfPoints/2;
-    height = numberOfPoints - width;
-
     
     PointCloud::Ptr cloud (new PointCloud);
     cloud->is_dense = false;
@@ -89,12 +84,10 @@ int main(){
         0,0,0,1;
 
     Calibration calibration(K, L);
-
-    cv::Mat depthMat = getSegmentedDepth("apple/apple.png", "apple/mask.png");
-    cv::Mat depthMat2 = getSegmentedDepth("apple/apple2.png", "apple/mask2.png");
-
     std::vector<hVec3D> points, points2;
 
+    cv::Mat depthMat = getSegmentedDepth("coffee/coffee.png", "coffee/mask.png");
+    cv::Mat depthMat2 = getSegmentedDepth("coffee/coffee2.png", "coffee/mask2.png");
     PointCloud::Ptr cloud =  buildPointCloud(depthMat, calibration, &points);
     PointCloud::Ptr cloud2 =  buildPointCloud(depthMat2, calibration, &points2);
 
@@ -107,7 +100,6 @@ int main(){
 
     pcl::visualization::CloudViewer viewer ("View Point Cloud");
     viewer.showCloud (Output);
-
     while (!viewer.wasStopped ()){}
 
     return 0;

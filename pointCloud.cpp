@@ -15,8 +15,11 @@
 #include <pcl/common/transforms.h>
 #include <ros/ros.h>
 #include <pcl/registration/icp.h>
-#include<pcl/search/impl/kdtree.hpp>
+#include <pcl/search/impl/kdtree.hpp>
 #include <vector>
+#include <pcl/visualization/pcl_visualizer.h>
+
+typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
 
 cv::Mat getSegmentedDepth(std::string depthFile, std::string maskFile){
     if(depthFile.empty()|maskFile.empty()){
@@ -33,31 +36,35 @@ cv::Mat getSegmentedDepth(std::string depthFile, std::string maskFile){
     return depthMat;
 }
 
-pcl::PointCloud<pcl::PointXYZRGB>::Ptr buildPointCloud(cv::Mat depthMat,  Calibration calibration, std::vector<hVec3D>* points){
+PointCloud::Ptr buildPointCloud(cv::Mat depthMat, Calibration calibration, std::vector<hVec3D>* points){
     hVec2D uv ;
     hVec3D xyz;
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
-    cloud->width    = 480;
-    cloud->height   = 640;
-    cloud->is_dense = false;
-    cloud->points.resize (cloud->width * cloud->height);
-
-    for(int i = 0; i< depthMat.rows; ++i){
-        for( int j = 0; j< depthMat.cols; ++j){   
+    int numberOfPoints = 0;
+    for(int i=0; i<depthMat.rows; ++i){
+        for(int j=0; j<depthMat.cols; ++j){
             if(depthMat.at<ushort>(i,j)!=0){
+                numberOfPoints++;
                 uv<<j,i,1;
                 xyz = calibration.Unproject(uv);
                 xyz *= 1.0f/xyz(2)*depthMat.at<ushort>(i,j);
                 xyz(3) = 1;
                 (*points).push_back(xyz);
-                (*cloud)[depthMat.rows*j + i].x=xyz(0);
-                (*cloud)[depthMat.rows*j + i].y=xyz(1);
-                (*cloud)[depthMat.rows*j + i].z=xyz(2);
-                (*cloud)[depthMat.rows*j + i].r=255;
-                (*cloud)[depthMat.rows*j + i].g=255;
-                (*cloud)[depthMat.rows*j + i].b=255;
             }
         }
+    }
+    int width, height;
+    width = numberOfPoints/2;
+    height = numberOfPoints - width;
+
+    
+    PointCloud::Ptr cloud (new PointCloud);
+    cloud->is_dense = false;
+    cloud->points.resize (numberOfPoints);
+
+    for(int i=0; i<cloud->size(); ++i){
+        (*cloud)[i].x = (*points)[i](0);
+        (*cloud)[i].y = (*points)[i](1);
+        (*cloud)[i].z = (*points)[i](2);
     }
     return cloud;
 }
@@ -80,24 +87,26 @@ int main(){
 
     Calibration calibration(K, L);
 
-    cv::Mat depthMat = getSegmentedDepth("coffee.png", "mask.png");
-    cv::Mat depthMat2 = getSegmentedDepth("coffee2.png", "mask2.png");
-    cv::Mat depthMat3 = getSegmentedDepth("coffee3.png", "mask3.png");
+    cv::Mat depthMat = getSegmentedDepth("apple/apple.png", "apple/mask.png");
+    cv::Mat depthMat2 = getSegmentedDepth("apple/apple2.png", "apple/mask2.png");
 
-    std::vector<hVec3D> points;
+    std::vector<hVec3D> points, points2;
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud =  buildPointCloud(depthMat, calibration, &points);
-   // pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud2 =  buildPointCloud(depthMat2, calibration);
-   // pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud3 =  buildPointCloud(depthMat3, calibration);
+    PointCloud::Ptr cloud =  buildPointCloud(depthMat, calibration, &points);
+    PointCloud::Ptr cloud2 =  buildPointCloud(depthMat2, calibration, &points2);
 
-    std::cout<<points.size()<<"\n";
+    pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+    icp.setInputSource(cloud);
+    icp.setInputTarget(cloud2);
 
+    PointCloud Output;
+    icp.align(Output);
 
-//     pcl::visualization::CloudViewer viewer ("View Point Cloud");
-//     //viewer.showCloud (cloud);
-//    // viewer.showCloud (cloud2);
-//     viewer.showCloud (cloud3);
-//     while (!viewer.wasStopped ()){}
+    pcl::visualization::PCLVisualizer viewer ("ICP Results");
+
+    // pcl::visualization::CloudViewer viewer ("View Point Cloud");
+    // viewer.showCloud (cloud);
+    // while (!viewer.wasStopped ()){}
 
     return 0;
 }

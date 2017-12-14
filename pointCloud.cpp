@@ -18,8 +18,11 @@
 #include <pcl/search/impl/kdtree.hpp>
 #include <vector>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <boost/thread/thread.hpp>
 
-typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
+typedef pcl::PointXYZ PointT;
+typedef pcl::PointCloud<PointT> PointCloud;
+
 
 cv::Mat getSegmentedDepth(std::string depthFile, std::string maskFile){
     if(depthFile.empty()|maskFile.empty()){
@@ -99,14 +102,13 @@ int main(){
     icp.setInputSource(cloud);
     icp.setInputTarget(cloud2);
 
-    PointCloud Output;
-    icp.align(Output);
+    PointCloud::Ptr Output (new PointCloud);
+    icp.align(*Output);
 
-    pcl::visualization::PCLVisualizer viewer ("ICP Results");
+    pcl::visualization::CloudViewer viewer ("View Point Cloud");
+    viewer.showCloud (Output);
 
-    // pcl::visualization::CloudViewer viewer ("View Point Cloud");
-    // viewer.showCloud (cloud);
-    // while (!viewer.wasStopped ()){}
+    while (!viewer.wasStopped ()){}
 
     return 0;
 }
